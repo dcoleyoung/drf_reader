@@ -4,4 +4,4 @@ Script for processing raw Daily Racing Form files (https://www1.drf.com/formulat
 
 Example usage
 
-$./python drf_reader2.py /Gp_220206/Gp_220206
+$./python drf_reader2.py path_to/Gp_220206/Gp_220206
