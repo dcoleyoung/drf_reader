@@ -1,5 +1,4 @@
 #!/bin/bash
-
 for entry in "/Users/dcoleyoung/Documents/Arthur"/*
 do
   x=`basename $entry` 
