@@ -184,6 +184,7 @@ class Race:
     race_class = ''
     race_purse = ''
     race_date = ''
+    max_wins = 0
 
     def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface):
         self.track_code = track_code
@@ -964,7 +965,8 @@ def main():
             races[race_id].trainer_rankings.append(float(row[98]))
             races[race_id].sale_rankings.append(float(row[21]))
             races[race_id].works_rankings.append(works_rate)
-
+            if int(row[43]) > races[race_id].max_wins:
+                races[race_id].max_wins = int(row[43])
             races[race_id].last_beyer_rankings.append(last_beyer)
             races[race_id].early_rate_rankings.append(early_rate)
             races[race_id].max_beyer_rankings.append(max_beyer)
@@ -1131,6 +1133,9 @@ def main():
                     value_town +=1
                 if last_delta >= -16:
                     value_town += 1
+                if horse.wins == races[race].max_wins and horse.wins > 2:
+                    value_town += 1
+                    horse.bonuses.append("Max W's")
 
                 if value_town >= 3:
                     horse.bonuses.append("Value Town: %s" % value_town)
