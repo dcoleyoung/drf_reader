@@ -15,6 +15,17 @@ from bs4 import BeautifulSoup
 import argparse
 import sqlite3
 
+allowance = "AVG/LAST/MAX"
+claim = "AVG/LAST/MAX"
+stk = "AVG/LAST/MAX"
+msw = "LAST/MAX/AVG"
+mcl = "MAX/LAST/AVG"
+
+beyer_priorities = {'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,
+                    'AN2L':allowance,'AN3L':allowance, 'OClN': claim, 'FUT':'', 'MDN': mcl,'STR': stk,'SHP':stk, 'TRL': claim,
+                    'INS': claim, 'AN1X': allowance, 'SOC':allowance, 'DBY':allowance, 'MOC':msw, 'AN2X':allowance, 'SST':stk,
+                    'HCP':stk, 'FTR': allowance, 'AN1Y':allowance}
+
 races = {}
 race_descriptions = {}
 race_surfaces = {}
@@ -22,11 +33,13 @@ race_distances = {}
 race_claim_prices = {}
 race_classes = {}
 morning_lines = {}
+bet_numbers = {}
 race_purses = {}
 race_class_code = {}
 race_date = ''
 race_track = ''
 winners_dict = {}
+hrn_runners = []
 class_rankings = {
 "GStk": 5,
 "STK": 5,
@@ -43,16 +56,20 @@ class_rankings = {
 "AN2L":	3,
 "AN3L":	3,
 "AOC":	3,
+"Aoc":	3,
 "STR":	3,
 "FTR":	3,
 "FUT":	3,
+"CHM": 3,
 "SHP":	3,
 "OClN": 3,
 "OCL":	3,
+"OCS":	3,
 "SOC":	3,
 "WCL":	2,
 "ClmN":	2,
 "CLM":	2,
+"CST":  2,
 "Clm":	2,
 "MDN":	2,
 "FNL":	2,
@@ -63,7 +80,9 @@ class_rankings = {
 "Maid":	1,
 "TRL": 1,
 "DBY": 1,
-"DTR": 1
+"DTR": 1,
+"INS": 1,
+"FCN": 1
 
 
 }
@@ -185,8 +204,9 @@ class Race:
     race_purse = ''
     race_date = ''
     max_wins = 0
+    longshot_prob = 0
 
-    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface):
+    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob):
         self.track_code = track_code
         self.race_number = race_number
         self.horses = []
@@ -213,6 +233,7 @@ class Race:
         self.race_purse = race_purse
         self.race_date = race_date
         self.surface = surface
+        self.longshot_prob = longshot_prob
 
     def __repr__(self):
         return repr(self.horses)
@@ -238,6 +259,7 @@ class Horse:
     post = 0
     aggregate = 0.0
     morning_line = ''
+    bet_number = ''
     long_shot = False
     improvement_rate = 0.0
     form_bonus = False
@@ -263,6 +285,7 @@ class Horse:
     best_result_at_comp = ''
     jockey_name = ''
     previous_jockey_name = ''
+    is_ex_prat = False
     maiden_lock = False
     had_bullet = False
     top_class = ''
@@ -275,12 +298,15 @@ class Horse:
     last_odds = 0.0
     last_odds_pos = 0
     avg_odds = 0.0
+    first_turf = False
+    longshot_power =  0
+    trainer_name = ''
     def __init__(self, name, early_rate, max_beyer, max_beyer_days_ago, avg_beyer, jockey, jockey_second, chances_rate, lifetime_starts, post,
-                 morning_line,
+                 morning_line, bet_number,
                  wins, place, show, improvement_rate, form_bonus, down_class, sale, trainer_pct, fluke, won_last, down_track,super_gain,zags,
                  loss_distance, closing_speed,last_track,works, had_bullet, last_beyer, cur_year_earnings, stars, best_result_at_distance,
                  jockey_name, previous_jockey_name, maiden_lock, tom_dist,tom_turf,tom_mud, last_finish, last_finish_distance, layoff, max_position, best_result_at_comp,
-                 dist_change, pen_rate, last_odds, last_odds_pos, avg_odds):
+                 dist_change, pen_rate, last_odds, last_odds_pos, avg_odds, first_turf, trainer_name, is_ex_prat):
         self.name = name
         self.early_rate = early_rate
         self.max_beyer = max_beyer
@@ -293,6 +319,7 @@ class Horse:
         self.post = post
         self.aggregate = 0.0
         self.morning_line = morning_line
+        self.bet_number = bet_number
         self.long_shot = False
         self.wins = wins
         self.place = place
@@ -320,13 +347,14 @@ class Horse:
         self.best_result_at_distance = best_result_at_distance
         self.jockey_name = jockey_name
         self.previous_jockey_name = previous_jockey_name
+        self.is_ex_prat = is_ex_prat
         self.maiden_lock = maiden_lock
         self.had_bullet = had_bullet
         self.tom_dist = tom_dist
         self.tom_turf = tom_turf
         self.tom_mud = tom_mud
-        self.last_finish = last_finish
-        self.last_finish_distance = last_finish_distance
+        self.last_finish = last_finish if last_finish != '' else 900
+        self.last_finish_distance = last_finish_distance if last_finish_distance != '' else 900
         self.layoff = layoff
         self.max_position = max_position
         self.dist_change = dist_change
@@ -335,6 +363,8 @@ class Horse:
         self.last_odds = last_odds
         self.last_odds_pos = last_odds_pos
         self.avg_odds = avg_odds
+        self.first_turf = first_turf
+        self.trainer_name = trainer_name
 
     def __repr__(self):
         return repr(self.name + ' : ' + str(self.early_rate) + ':' + str(self.max_beyer) + ':' + str(self.avg_beyer))
@@ -363,6 +393,12 @@ def get_special_products(horse_name):
                 return row
 
 
+def ex_prat(pps):
+    for pp in pps:
+        if 'Prat' in pp[70]:
+            return True
+    return False
+
 
 def get_improvement_rate(pps):
     total = 0.0
@@ -383,6 +419,12 @@ def get_early_rate(pps):
             total += 1
     return total / len(pps)
 
+
+def is_first_turf(pps):
+    for pp in pps:
+        if pp[9] == 'T':
+            return False
+    return True
 
 def get_pen_rate(pps):
     pen_total = 0.0
@@ -505,13 +547,208 @@ def get_avg_beyer(pps):
                 speed_figure -= 14
             average_beyer += speed_figure
             total += 1
-    if total > 3: # have 4 to qualify tossing the lowest
+    if total > 1: # have 4 to qualify tossing the lowest
         average_beyer -= min
         total -= 1
         return average_beyer / total
     else:
         return 0
 
+
+def longshot_power(horse, race, avg_delta, max_delta, last_delta):
+    power = 0
+    con = sqlite3.connect('races_v2.db')
+    cur = con.cursor()
+    if race.race_class in ['MSW', 'MCL', 'MOC']:
+        cur.execute(
+            "SELECT avg(\"Jockey Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        jockey_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey) <= jockey_field_ranking:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Jockey\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        jockey_field = float(cur.fetchone()[0])
+        if horse.jockey >= jockey_field:
+            power += 1
+
+
+        cur.execute(
+            "SELECT avg(\"Trainer Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        trainer_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.trainer_rankings, start=1, strategy=COMPETITION).rank(horse.trainer_pct) <= trainer_field_ranking:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Trainer\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        trainer_field = float(cur.fetchone()[0])
+        if horse.trainer_pct >= trainer_field:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Works Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        works_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.works_rankings, start=1, strategy=COMPETITION).rank(horse.works) <= works_field_ranking:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Works\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        works_field = float(cur.fetchone()[0])
+        if horse.works >= works_field:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Tom Dist\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        tom_dist_field = float(cur.fetchone()[0])
+        if horse.tom_dist >= tom_dist_field:
+            power += 1
+
+    else:
+        cur.execute(
+            "SELECT avg(\"Avg. B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        avg_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer) <= avg_field_ranking:
+            power += 1
+        cur.execute(
+            "SELECT avg(\"Avg. B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        avg_field_delta = float(cur.fetchone()[0])
+        if avg_delta >= avg_field_delta:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Last B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        last_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer) <= last_field_ranking:
+            power += 1
+        cur.execute(
+            "SELECT avg(\"Last B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        last_field_delta = float(cur.fetchone()[0])
+        if avg_delta >= last_field_delta:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Max B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        max_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer) <= max_field_ranking:
+            power += 1
+        cur.execute(
+            "SELECT avg(\"Max B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        max_field_delta = float(cur.fetchone()[0])
+        if max_delta >= max_field_delta:
+            power += 1
+
+        cur.execute(
+            "SELECT avg(\"Jockey Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        jockey_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey) <= jockey_field_ranking:
+            power += .25
+
+        cur.execute(
+            "SELECT avg(\"Jockey\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        jockey_field = float(cur.fetchone()[0])
+        if horse.jockey >= jockey_field:
+            power += .25
+
+
+        cur.execute(
+            "SELECT avg(\"Trainer Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        trainer_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.trainer_rankings, start=1, strategy=COMPETITION).rank(horse.trainer_pct) <= trainer_field_ranking:
+            power += .25
+
+        cur.execute(
+            "SELECT avg(\"Trainer\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        trainer_field = float(cur.fetchone()[0])
+        if horse.trainer_pct >= trainer_field:
+            power += .25
+
+
+        cur.execute(
+            "SELECT avg(\"Works Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        works_field_ranking = float(cur.fetchone()[0])
+        if Ranking(race.works_rankings, start=1, strategy=COMPETITION).rank(horse.works) <= works_field_ranking:
+            power += .25
+
+        cur.execute(
+            "SELECT avg(\"Works\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        works_field = float(cur.fetchone()[0])
+        if horse.works >= works_field:
+            power += .25
+
+        cur.execute(
+            "SELECT avg(\"Early\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
+        early_field = float(cur.fetchone()[0])
+        if horse.early_rate >= early_field:
+            power += 1
+
+
+    # avg b ranking
+    # avg b delta
+    # max b delta
+    # max b ranking
+    # last b ranking
+    # last b delta
+    # jockey ranking
+    # jockey pct
+    # trainer pct
+    # trainer ranking
+    # works pct
+    # works ranking
+
+    return power
+
+
+
+
+
+def calculate_probability(horse, race):
+    max_rank = Ranking(race.max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer)
+    max_rank = min(max_rank, 8)
+    avg_rank = Ranking(race.avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer)
+    avg_rank = min(avg_rank, 8)
+    last_rank = Ranking(race.last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer)
+    last_rank = min(last_rank, 8)
+    jockey_rank = Ranking(race.jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey)
+    jockey_rank = min(jockey_rank, 8)
+    trainer_rank = Ranking(race.trainer_rankings, start=1, strategy=COMPETITION).rank(horse.trainer_pct)
+    trainer_rank = min(trainer_rank, 8)
+    works_rank = Ranking(race.works_rankings, start=1, strategy=COMPETITION).rank(horse.works)
+    works_rank = min(works_rank, 8)
+    con = sqlite3.connect('races_v2.db')
+    cur = con.cursor()
+    if race.race_class in ['MSW', 'MCL','MOC']:
+        cur.execute(
+            "SELECT count(*) FROM races_v2 where \"Trainer Ranking\" = %s and \"Jockey Ranking\"=%s and \"Work Ranking\"=%s and \"Tom Dist\" >=%s and \"Won Race\"=\"True\"" %
+            (trainer_rank, jockey_rank, works_rank, horse.tom_dist))
+        total_success = float(cur.fetchone()[0])
+
+        cur.execute(
+            "SELECT count(*) FROM races_v2 where \"Trainer Ranking\" = %s and \"Jockey Ranking\"=%s and \"Work Ranking\"=%s and \"Tom Dist\" >=%s and \"Won Race\"=\"False\"" %
+            (trainer_rank, jockey_rank, works_rank, horse.tom_dist))
+    else:
+        cur.execute("SELECT count(*) FROM races_v2 where \"Avg. B. Ranking\" = %s and \"Last B. Ranking\"=%s and \"Max B. Ranking\"= %s and \"Class Change\"=%s and \"Won Race\"=\"True\"" %
+                    (avg_rank, last_rank, max_rank, horse.down_class))
+        total_success = float(cur.fetchone()[0])
+
+
+        cur.execute("SELECT count(*) FROM races_v2 where \"Avg. B. Ranking\" = %s and \"Last B. Ranking\"=%s and \"Max B. Ranking\"= %s and \"Class Change\"=%s and \"Won Race\"=\"False\"" %
+                    (avg_rank, last_rank, max_rank, horse.down_class))
+
+    total_fail = float(cur.fetchone()[0])
+
+    try:
+        probability = total_success / (total_success+total_fail)
+    except:
+        probability = 0
+    sample = total_success + total_fail
+    if 0 < probability < 1.0:
+        odds = 1 / (probability / (1 - probability))
+    else:
+        if probability == 1:
+            return 1, sample
+        else:
+            return 0, sample
+    return odds, sample
 
 def max_class_and_finish(pps):
     max_class_rank = class_rankings[pps[0][13]]
@@ -554,6 +791,34 @@ def get_loss_distances(pps):
         return loss_distance / total
     else:
         return 99
+
+
+
+def get_race_longshot_odds(distance, race_class):
+    con = sqlite3.connect('races_v2.db')
+    cur = con.cursor()
+    cur.execute("SELECT count(*) FROM races_v2 where price > 22 and \"Won Race\"=\"True\" and class=\"%s\" and distance = \"%s\" " % (race_class, distance))
+    total_success = float(cur.fetchone()[0])
+
+    cur.execute("SELECT count(*) FROM races_v2 where price > 22 and \"Won Race\"=\"False\" and class=\"%s\" and distance = \"%s\" " % (race_class, distance))
+
+    total_fail = float(cur.fetchone()[0])
+
+    try:
+        probability = total_success / (total_success+total_fail)
+    except:
+        probability = 0
+    sample = total_success + total_fail
+
+    if sample == 0:
+        return 0
+
+    if 0 < probability < 1.0:
+        odds = 1 / (probability / (1 - probability))
+        return odds
+    else:
+        return 0
+
 
 def profile_horse(horse, race_class, race_distance, avg_delta, max_delta, last_delta):
     profile_hits = 0
@@ -706,7 +971,11 @@ def load_winners():
     'PRX':'parx-racing','BEL':'belmont-park','KEE':'keeneland','CD':'churchill-downs',
     'FG':'fair-grounds','AQU':'aqueduct','GPW':'gulfstream-park-west','HOU':'sam-houston','LRC':'los-alamitos-race-course',
     'MNR':'mountaineer','TAM':'tampa-bay-downs','OP':'oaklawn-park','PIM':'pimlico-race-course','IN':'indiana-grand',
-                    'MTH':'monmouth-park','SAR':'saratoga', 'PEN':'penn-national', 'IND':'indiana-grand'
+                    'MTH':'monmouth-park','SAR':'saratoga', 'PEN':'penn-national', 'IND':'indiana-grand',
+                    'GG':'golden-gate','AP':'arlington-park','CBY':'canterbury-park', 'CTM': 'century-mile','EMD':'emerald-downs',
+                    'KD':'kentucky-downs', 'LS':'lone-star-park', 'LRL':'laurel-park', 'RP': 'remington-park',
+                    'TUP': 'turf-paradise', 'PRM': 'prairie-meadows','CT':'charles-town', 'MVR':'mahoning-valley',
+                    'TDN':'thistledown', 'WO':'woodbine',
     }
     headers = {
         'Access-Control-Allow-Origin': '*',
@@ -719,17 +988,36 @@ def load_winners():
     req = requests.get(url, headers)
     global winners_dict
     soup = BeautifulSoup(req.content, 'html.parser')
+
+    global hrn_runners
+    also_rans = soup.find_all("div", {"class": "mb-3 race-also-rans"})
+    for ar in also_rans:
+        race_also_rans = ar.get_text().strip()
+        r = race_also_rans.split("Also rans:")[1].split(',')
+        hrn_runners += [name.strip() for name in r ]
+
     tables = soup.find_all("table", {"class": "table table-hrn table-payouts"})
     for table in tables:
         tbody = table.find("tbody")
         first_row = tbody.find("tr")
         cells = first_row.findAll("td")
         name = cells[0].get_text().strip()
-        post = cells[1].find("img")['title'].strip()
+        post = cells[1].find("img")['title']
         price = cells[2].get_text().strip()
-        winners_dict[name] = {'price': price.strip('$'), 'post': post}
+        price = price.lstrip("$")
+        try:
+            price = float(price)
+        except:
+            continue # price was string like - for no contest
+        winners_dict[name] = {'price': price, 'post': post}
 
-    return winners_dict
+        rows = tbody.find_all('tr')
+        for row in rows:
+            cells = row.findAll("td")
+            name = cells[0].get_text().strip()
+            hrn_runners.append(name)
+
+    return winners_dict, hrn_runners
 
 def main():
     parser = argparse.ArgumentParser()
@@ -747,7 +1035,8 @@ def main():
             race_track = row[0]
             global surface
             surface = row[17]
-            race_descriptions[int(row[2])] = 'Race %s: %s \n%s\n%s %s %s' % (row[2], row[4], row[26], row[15], row[11], surface)
+            x = beyer_priorities[row[11]]
+            race_descriptions[int(row[2])] = 'Race %s: %s \n%s\n%s %s %s %s' % (row[2], row[4], row[26], row[15], row[11], surface, '\n'+x)
             race_surfaces[int(row[2])] = surface
             race_classes[int(row[2])] = class_rankings[row[11]]
             race_distances[int(row[2])] = float(row[15])
@@ -757,6 +1046,7 @@ def main():
     with open(options.race_source + '.pgh', 'r') as f:
         for row in csv.reader(f):
             morning_lines[row[5]] = row[7]
+            bet_numbers[row[5]] = row[3]
 
     if options.results:
         load_winners()
@@ -767,7 +1057,8 @@ def main():
                 races[race_id] = Race(track_code=row[0], race_number=row[2],class_value=race_classes[race_id],
                                       distance=race_distances[race_id], race_class=race_class_code[race_id],
                                       race_purse=race_purses[race_id], race_date=row[1],
-                                      surface=race_surfaces[race_id])
+                                      surface=race_surfaces[race_id],
+                                      longshot_prob=get_race_longshot_odds(race_distances[race_id],race_class_code[race_id]))
             pps = get_pps(row[5])
             special_products = get_special_products(row[5])
             tom_dist = special_products[15].replace("*", "")
@@ -836,11 +1127,11 @@ def main():
                 improvement_rate = get_improvement_rate(pps)
                 zags = get_zags(pps)
                 loss_distance = get_loss_distances(pps)
+                is_ex_prat = ex_prat(pps)
                 closing_speed = get_closing_speed(pps)
                 best_result_at_distance = get_best_result_at_distance(pps, races[race_id].distance)
                 best_result_at_comp = get_best_result_at_comp(pps, races[race_id].race_class, race_claim_prices[race_id])
-                #print pps[0][3]
-                #print(best_result_at_comp)
+                first_turf = is_first_turf(pps)
                 stars = 0
                 if len(pps) > 0:
                     if int(pps[0][52]) == 1:
@@ -853,7 +1144,7 @@ def main():
                     won_last = False
                 #last_track = '%s %s/%s/%s %s %s' % (pps[0][7], num2words(int(pps[0][52]), to='ordinal_num'), pps[0][57], pps[0][53], pps[0][12], pps[0][14])
                 #last_track += '\n %s' % pps[0][60]
-                last_track = pps[0][7] + "-" + pps[0][14]
+                last_track = pps[0][7] + "-" + pps[0][14] + ' (%s)' % pps[0][12]
                 #last_track = pps[0][7]
                 last_date = datetime.datetime.strptime(pps[0][6], '%m/%d/%Y')
                 race_date = datetime.datetime.strptime(row[1], '%m/%d/%Y')
@@ -901,6 +1192,8 @@ def main():
                 last_odds = 0
                 last_odds_pos = 0
                 avg_odds = 0.0
+                first_turf = False
+                is_ex_prat = False
             if float(row[79]) > 0:
                 jockey_second = float(row[82]) / float(row[79])
             else:
@@ -916,6 +1209,7 @@ def main():
                                                lifetime_starts=int(row[42]),
                                                post=row[30],
                                                morning_line=morning_lines[row[5]],
+                                               bet_number=bet_numbers[row[5]],
                                                wins=int(row[43]),
                                                place=int(row[44]),
                                                show=int(row[45]),
@@ -927,7 +1221,9 @@ def main():
                                                trainer_pct=float(row[98]),
                                                fluke=fluke,
                                                won_last=won_last,
+                                               first_turf=first_turf,
                                                last_finish=last_finish,
+                                               is_ex_prat=is_ex_prat,
                                                last_finish_distance=last_finish_distance,
                                                super_gain=super_gain,
                                                zags=zags,
@@ -943,6 +1239,7 @@ def main():
                                                best_result_at_distance=best_result_at_distance,
                                                best_result_at_comp= best_result_at_comp,
                                                jockey_name=row[28],
+                                               trainer_name = row[29],
                                                previous_jockey_name=previous_jockey_name,
                                                maiden_lock=maiden_lock,
                                                tom_dist=tom_dist,
@@ -954,7 +1251,7 @@ def main():
                                                pen_rate = pen_rate,
                                                last_odds = last_odds,
                                                last_odds_pos = last_odds_pos,
-                                               avg_odds = avg_odds
+                                               avg_odds = avg_odds,
                                                )
                                          )
             if int(row[42]) < 2:
@@ -1047,11 +1344,14 @@ def main():
             #horse.bonuses.append(horse.max_position[0])
             #horse.bonuses.append(horse.max_position[1])
 
-            if horse.lifetime_starts <= 2:
+            if races[race].race_class in ['MOC','MSW','MCL']:
                 #horse.bonuses.append("%.2f/%.2f" % (float(horse.trainer_pct)+float(horse.jockey), float(horse.trainer_pct)))
-                horse.bonuses.append(horse.tom_dist)
+                if horse.lifetime_starts < 3:
+                    horse.bonuses.append('D-' + horse.tom_dist)
                 if races[race].surface == 'T':
-                    horse.bonuses.append(horse.tom_turf)
+                    horse.bonuses.append('T-' + horse.tom_turf)
+                    if horse.first_turf:
+                        horse.bonuses.append("FT")
 
             if horse.fluke and horse.had_bullet:
                     horse.bonuses.append("BB")
@@ -1067,6 +1367,9 @@ def main():
                 short_code = horse.last_track.split("-")[0]
                 if short_code != races[race].track_code:
                     horse.bonuses.append("DH")
+            if horse.is_ex_prat:
+                 horse.bonuses.append("Ex-Prat")
+
 
 
 
@@ -1146,14 +1449,21 @@ def main():
                 horse.bonuses.append("Me likey")
 
 
+            horse.my_odds = calculate_probability(horse, races[race])
+
+            if true_ml > 8:
+                horse.longshot_power = longshot_power(horse, races[race], avg_delta, max_delta, last_delta)
+                if horse.longshot_power >= 4:
+                    horse.bonuses.append("Power: %s" % horse.longshot_power)
 
             header_row = ['Date','Track','Race','Class','Distance','Surface','Price','Horse','Lifetime Starts',
                           'Wins','Place','Show','Avg. B. Ranking','Avg. B. Delta','Last B. Ranking','Last B. Delta',
                           'Max B. Ranking', 'Max B. Delta','Jockey Ranking', 'Jockey', 'Early Ranking', 'Early',
                           'Trainer Ranking', 'Trainer', 'Work Ranking', 'Works', 'Year Earnings Rankings', 'Year Earnings',
                           'Form', 'Super Gain', 'Class Change','Dist Change','Won Last', 'Last Finish','Last Finish Distance', 'Had Bullet',
-                          'Fluke','Tom Dist','Tom Turf', 'Tom Mud','Layoff']
-            if options.results and horse.name in winners_dict:
+                          'Fluke','Tom Dist','Tom Turf', 'Tom Mud','Layoff','ML Odds', 'Won Race','Final Odds','Overlay Bool','Overlay']
+
+            if options.results and (horse.name in winners_dict or horse.name in hrn_runners):
                 horse_row = []
                 horse_row.append(race_date.strftime("%Y/%m/%d"))
                 horse_row.append(race_track)
@@ -1161,7 +1471,12 @@ def main():
                 horse_row.append(races[race].race_class)
                 horse_row.append(races[race].distance)
                 horse_row.append(races[race].surface)
-                horse_row.append(winners_dict[horse.name]['price'])
+
+                if horse.name in winners_dict:
+                    horse_row.append(winners_dict[horse.name]['price'])
+                else:
+                    horse_row.append('')
+
                 horse_row.append(horse.name)
                 horse_row.append(horse.lifetime_starts)
                 horse_row.append(horse.wins) if horse.lifetime_starts > 0 else horse_row.append('')
@@ -1197,27 +1512,39 @@ def main():
                 horse_row.append(horse.tom_turf)
                 horse_row.append(horse.tom_mud)
                 horse_row.append(horse.layoff) if horse.layoff else horse_row.append('')
+                horse_row.append(float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])))
+                if horse.name in winners_dict:
+                    horse_row.append("True")
+                    horse_row.append((float(winners_dict[horse.name]['price'])-2) /2)
+                    horse_row.append(True if float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) <  (float(winners_dict[horse.name]['price'])-2) /2 else False)
+                    horse_row.append(((float(winners_dict[horse.name]['price'])-2) / 2)  - float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) )
+
+                else:
+                    horse_row.append('False')
+                    horse_row.append('')
+                    horse_row.append('')
+                    horse_row.append('')
 
 
-                with open('eggs.csv', 'a') as f:
+                with open('new_eggs.csv', 'a') as f:
                     spamwriter = csv.writer(f)
                     spamwriter.writerow(horse_row)
                     #spamwriter.writerow(header_row)
                     #exit(1)
                     #return
-                break
 
             table.append([
                     #'%s %s %s %s %s' % (races[race].race_date,races[race].track_code,races[race].race_number,
                     #              races[race].race_class, races[race].race_purse),
                     horse.stars * '*',
-                    '%s (%s) \n%s'  % (horse.name, horse.post, horse.morning_line),
+                    '%s (%s) \n%s'  % (horse.name, horse.bet_number, horse.morning_line),
                               '%s:%s-%s-%s' % (horse.lifetime_starts, horse.wins, horse.place, horse.show),
+                              '%.1f:1%s\nof:%.f' % (horse.my_odds[0],'*' if horse.my_odds[0] < (float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1]))) else '', horse.my_odds[1]) if horse.my_odds[0] != 0 else '',
                               '%s %s %s' % (horse.avg_beyer, num2words(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer), to='ordinal_num'), avg_delta),
                               '%s %s %s' % (horse.last_beyer, num2words(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer), to='ordinal_num'), last_delta),
                               '%s %s %s %s' % (horse.max_beyer,horse.max_beyer_days_ago, num2words(Ranking(races[race].max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer), to='ordinal_num'), max_delta),
-                              '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
-                              '%.2f' % horse.trainer_pct,
+                              '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:7] if horse.jockey_name.startswith("Her") or horse.jockey_name.startswith("Lan") or horse.jockey_name.startswith("Ort") or horse.jockey_name.startswith("Saez") else horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
+                              '%.2f %s' % (horse.trainer_pct,horse.trainer_name[:4]),
                               '%.2f %s' % (horse.works, '*' if horse.had_bullet else ''),
                               '%.2f %s' % (horse.early_rate if horse.lifetime_starts >= 2 else 0.0, (str("%.2f" % early_delta) if early_delta > 0 else '') if horse.lifetime_starts >= 2 else ''),
                               '%.2f' % (horse.improvement_rate if horse.lifetime_starts >= 2 else 0.0),
@@ -1243,9 +1570,11 @@ def main():
     if not options.results:
         for index, table_tuple in enumerate(tables):
             print(race_descriptions[index + 1])
+            if races[index+1].longshot_prob != 0:
+                print("Longshot Odds %.1f:1" % races[index+1].longshot_prob)
             print tabulate(table_tuple[0],
                            tablefmt="pretty",
-                           headers=["Rating", "Name","Life", "Avg\nBeyer","Last\nBeyer","Max\nBeyer", "Jockey","Tr.",
+                           headers=["Rating", "Name","Life","My Odds", "Avg\nBeyer","Last\nBeyer","Max\nBeyer", "Jockey","Tr.",
                                     "Works","Early","Late","Pen Call","$","Form","SG","Class","Last Track","LF","LFD",
                                     "Last Odds","Avg Odds","Layoff","Bonuses","Comp"])
 

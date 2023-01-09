@@ -1,5 +1,5 @@
 #!/bin/bash
-for entry in "/Users/dcoleyoung/Documents/Arthur"/*
+for entry in "/Users/dcoleyoung/Documents/Horse/"*/
 do
   x=`basename $entry` 
   y="$entry/$x"
