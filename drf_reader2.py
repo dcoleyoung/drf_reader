@@ -177,136 +177,50 @@ track_abbreviations = {
 }
 
 class Race:
-    description = ''
-    horses = []
-    race_number = 0
-    early_rate_rankings = []
-    max_beyer_rankings = []
-    avg_beyer_rankings = []
-    last_beyer_rankings = []
-    jockey_rankings = []
-    chances_rankings = []
-    improvement_rankings = []
-    loss_distance_rankings = []
-    money_rate_rankings = []
-    cur_year_earnings_rankings = []
-    class_value = 0
-    track_code = ''
-    trainer_rankings = []
-    sale_rankings = []
-    works_rankings = []
-    surface = ''
-    maiden_trainer_rankings = []
-    maiden_works_rankings = []
-    maiden_sale_rankings = []
-    claim_value = 0
-    race_class = ''
-    race_purse = ''
-    race_date = ''
-    max_wins = 0
-    longshot_prob = 0
-
-    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob):
-        self.track_code = track_code
-        self.race_number = race_number
+    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob, description='', early_rate_rankings=[], max_beyer_rankings=[], avg_beyer_rankings=[], last_beyer_rankings=[], jockey_rankings=[], chances_rankings=[], improvement_rankings=[], loss_distance_rankings=[], money_rate_rankings=[], cur_year_earnings_rankings=[], trainer_rankings=[], sale_rankings=[], works_rankings=[], maiden_trainer_rankings=[], maiden_works_rankings=[], maiden_sale_rankings=[], claim_value=0, max_wins=0):
+        self.description = description
         self.horses = []
-        self.avg_beyer_rankings = []
-        self.max_beyer_rankings = []
-        self.last_beyer_rankings = []
-        self.early_rate_rankings = []
-        self.jockey_rankings = []
-        self.chances_rankings = []
-        self.improvement_rankings = []
-        self.loss_distance_rankings = []
-        self.score_rankings = []
-        self.cur_year_earnings_rankings = []
+        self.race_number = race_number
+        self.early_rate_rankings = early_rate_rankings
+        self.max_beyer_rankings = max_beyer_rankings
+        self.avg_beyer_rankings = avg_beyer_rankings
+        self.last_beyer_rankings = last_beyer_rankings
+        self.jockey_rankings = jockey_rankings
+        self.chances_rankings = chances_rankings
+        self.improvement_rankings = improvement_rankings
+        self.loss_distance_rankings = loss_distance_rankings
+        self.money_rate_rankings = money_rate_rankings
+        self.cur_year_earnings_rankings = cur_year_earnings_rankings
         self.class_value = class_value
-        self.money_rate_rankings = []
-        self.trainer_rankings = []
-        self.money_rate_rankings = []
-        self.works_rankings = []
-        self.maiden_trainer_rankings = []
-        self.maiden_works_rankings = []
-        self.maiden_sale_rankings = []
-        self.distance = distance
+        self.track_code = track_code
+        self.trainer_rankings = trainer_rankings
+        self.sale_rankings = sale_rankings
+        self.works_rankings = works_rankings
+        self.surface = surface
+        self.maiden_trainer_rankings = maiden_trainer_rankings
+        self.maiden_works_rankings = maiden_works_rankings
+        self.maiden_sale_rankings = maiden_sale_rankings
+        self.claim_value = claim_value
         self.race_class = race_class
         self.race_purse = race_purse
         self.race_date = race_date
-        self.surface = surface
+        self.max_wins = max_wins
         self.longshot_prob = longshot_prob
+        self.distance = distance
 
     def __repr__(self):
         return repr(self.horses)
 
 
+
+
 class Horse:
-    name = ''
-    early_rate = 0.0
-    wins = 0
-    show = 0
-    place = 0
-    come_back = 0
-    jockey = 0.0
-    jockey_second = 0.0
-    layoff = 0
-    race = 0
-    pps = []
-    bonuses = []
-    max_beyer = 0
-    avg_beyer = 0
-    chances_rate = 0.0
-    lifetime_starts = 0
-    post = 0
-    aggregate = 0.0
-    morning_line = ''
-    bet_number = ''
-    long_shot = False
-    improvement_rate = 0.0
-    form_bonus = False
-    down_class = 0
-    down_track = False
-    sale = 0
-    trainer_pct = 0.0
-    fluke = False
-    won_last = False
-    ops = 0.0
-    super_gain = False
-    zags = 0
-    loss_distance = 0.0
-    works = 0.0
-    closing_speed = False
-    last_beyer = 0.0
-    dan_odds = 0.0
-    cur_year_earnings = 0.0
-    money_rate = 0.0
-    implied_probability = 0.0
-    stars = 0
-    best_result_at_distance = -1
-    best_result_at_comp = ''
-    jockey_name = ''
-    previous_jockey_name = ''
-    is_ex_prat = False
-    maiden_lock = False
-    had_bullet = False
-    top_class = ''
-    top_class_finish = ''
-    max_position = ''
-    dist_change = 0
-    comp_race = ''
-    pen_rate = 0.0
-    max_beyer_days_ago = 0
-    last_odds = 0.0
-    last_odds_pos = 0
-    avg_odds = 0.0
-    first_turf = False
-    longshot_power =  0
-    trainer_name = ''
-    def __init__(self, name, early_rate, max_beyer, max_beyer_days_ago, avg_beyer, jockey, jockey_second, chances_rate, lifetime_starts, post,
-                 morning_line, bet_number,
-                 wins, place, show, improvement_rate, form_bonus, down_class, sale, trainer_pct, fluke, won_last, down_track,super_gain,zags,
-                 loss_distance, closing_speed,last_track,works, had_bullet, last_beyer, cur_year_earnings, stars, best_result_at_distance,
-                 jockey_name, previous_jockey_name, maiden_lock, tom_dist,tom_turf,tom_mud, last_finish, last_finish_distance, layoff, max_position, best_result_at_comp,
-                 dist_change, pen_rate, last_odds, last_odds_pos, avg_odds, first_turf, trainer_name, is_ex_prat):
+    def __init__(self, name='', early_rate=0.0, max_beyer=0, max_beyer_days_ago=0, avg_beyer=0, jockey=0.0, jockey_second=0.0, chances_rate=0.0, lifetime_starts=0, post=0,
+                 morning_line='', bet_number='',
+                 wins=0, place=0, show=0, improvement_rate=0.0, form_bonus=False, down_class=0, sale=0, trainer_pct=0.0, fluke=False, won_last=False, down_track=False, super_gain=False, zags=0,
+                 loss_distance=0.0, closing_speed=False, last_track='', works=0.0, had_bullet=False, last_beyer=0.0, cur_year_earnings=0.0, stars=0, best_result_at_distance=-1,
+                 jockey_name='', previous_jockey_name='', maiden_lock=False, tom_dist=False, tom_turf=False, tom_mud=False, last_finish='', last_finish_distance='', layoff=0, max_position='', best_result_at_comp='',
+                 dist_change=0, pen_rate=0.0, last_odds=0.0, last_odds_pos=0, avg_odds=0.0, first_turf=False, trainer_name='', is_ex_prat=False, fake_wins=0):
         self.name = name
         self.early_rate = early_rate
         self.max_beyer = max_beyer
@@ -322,6 +236,7 @@ class Horse:
         self.bet_number = bet_number
         self.long_shot = False
         self.wins = wins
+        self.fake_wins = fake_wins
         self.place = place
         self.show = show
         self.improvement_rate = improvement_rate
@@ -399,6 +314,13 @@ def ex_prat(pps):
             return True
     return False
 
+def get_fake_wins(pps): # lost by less than length
+    fake_wins = 0
+    for pp in pps:
+        if float(pp[52]) != 1 and float(pp[53]) <= 1.0:
+            print('FAKE')
+            fake_wins += 1
+    return fake_wins
 
 def get_improvement_rate(pps):
     total = 0.0
@@ -1128,6 +1050,8 @@ def main():
                 zags = get_zags(pps)
                 loss_distance = get_loss_distances(pps)
                 is_ex_prat = ex_prat(pps)
+                fake_wins = get_fake_wins(pps)
+                print(fake_wins)
                 closing_speed = get_closing_speed(pps)
                 best_result_at_distance = get_best_result_at_distance(pps, races[race_id].distance)
                 best_result_at_comp = get_best_result_at_comp(pps, races[race_id].race_class, race_claim_prices[race_id])
@@ -1194,6 +1118,7 @@ def main():
                 avg_odds = 0.0
                 first_turf = False
                 is_ex_prat = False
+                fake_wins = 0
             if float(row[79]) > 0:
                 jockey_second = float(row[82]) / float(row[79])
             else:
@@ -1252,6 +1177,7 @@ def main():
                                                last_odds = last_odds,
                                                last_odds_pos = last_odds_pos,
                                                avg_odds = avg_odds,
+                                               fake_wins = fake_wins
                                                )
                                          )
             if int(row[42]) < 2:
@@ -1276,7 +1202,6 @@ def main():
             #races[race_id].cur_year_earnings_rankings.append((float(row[41])*1000) if float(row[41]) > 0 else 0.0) # last year
 
             races[race_id].cur_year_earnings_rankings.append((float(row[31])*1000) / float(row[32]) if float(row[32]) > 0 else 0.0)
-
 
     tables = []
     winner_rows = []
@@ -1538,7 +1463,7 @@ def main():
                     #              races[race].race_class, races[race].race_purse),
                     horse.stars * '*',
                     '%s (%s) \n%s'  % (horse.name, horse.bet_number, horse.morning_line),
-                              '%s:%s-%s-%s' % (horse.lifetime_starts, horse.wins, horse.place, horse.show),
+                              '%s:%s%s-%s-%s' % (horse.lifetime_starts, horse.wins ,'('+str(horse.fake_wins)+')' if horse.fake_wins > 0 else '', horse.place, horse.show),
                               '%.1f:1%s\nof:%.f' % (horse.my_odds[0],'*' if horse.my_odds[0] < (float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1]))) else '', horse.my_odds[1]) if horse.my_odds[0] != 0 else '',
                               '%s %s %s' % (horse.avg_beyer, num2words(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer), to='ordinal_num'), avg_delta),
                               '%s %s %s' % (horse.last_beyer, num2words(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer), to='ordinal_num'), last_delta),
