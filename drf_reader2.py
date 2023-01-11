@@ -177,39 +177,40 @@ track_abbreviations = {
 }
 
 class Race:
-    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob, description='', early_rate_rankings=[], max_beyer_rankings=[], avg_beyer_rankings=[], last_beyer_rankings=[], jockey_rankings=[], chances_rankings=[], improvement_rankings=[], loss_distance_rankings=[], money_rate_rankings=[], cur_year_earnings_rankings=[], trainer_rankings=[], sale_rankings=[], works_rankings=[], maiden_trainer_rankings=[], maiden_works_rankings=[], maiden_sale_rankings=[], claim_value=0, max_wins=0):
-        self.description = description
+    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob, description=None, early_rate_rankings=None, max_beyer_rankings=None, avg_beyer_rankings=None, last_beyer_rankings=None, jockey_rankings=None, chances_rankings=None, improvement_rankings=None, loss_distance_rankings=None, money_rate_rankings=None, cur_year_earnings_rankings=None, trainer_rankings=None, sale_rankings=None, works_rankings=None, maiden_trainer_rankings=None, maiden_works_rankings=None, maiden_sale_rankings=None, claim_value=None, max_wins=None):
+        self.description = description or ''
         self.horses = []
         self.race_number = race_number
-        self.early_rate_rankings = early_rate_rankings
-        self.max_beyer_rankings = max_beyer_rankings
-        self.avg_beyer_rankings = avg_beyer_rankings
-        self.last_beyer_rankings = last_beyer_rankings
-        self.jockey_rankings = jockey_rankings
-        self.chances_rankings = chances_rankings
-        self.improvement_rankings = improvement_rankings
-        self.loss_distance_rankings = loss_distance_rankings
-        self.money_rate_rankings = money_rate_rankings
-        self.cur_year_earnings_rankings = cur_year_earnings_rankings
+        self.early_rate_rankings = early_rate_rankings or []
+        self.max_beyer_rankings = max_beyer_rankings or []
+        self.avg_beyer_rankings = avg_beyer_rankings or []
+        self.last_beyer_rankings = last_beyer_rankings or []
+        self.jockey_rankings = jockey_rankings or []
+        self.chances_rankings = chances_rankings or []
+        self.improvement_rankings = improvement_rankings or []
+        self.loss_distance_rankings = loss_distance_rankings or []
+        self.money_rate_rankings = money_rate_rankings or []
+        self.cur_year_earnings_rankings = cur_year_earnings_rankings or []
         self.class_value = class_value
         self.track_code = track_code
-        self.trainer_rankings = trainer_rankings
-        self.sale_rankings = sale_rankings
-        self.works_rankings = works_rankings
+        self.trainer_rankings = trainer_rankings or []
+        self.sale_rankings = sale_rankings or []
+        self.works_rankings = works_rankings or []
         self.surface = surface
-        self.maiden_trainer_rankings = maiden_trainer_rankings
-        self.maiden_works_rankings = maiden_works_rankings
-        self.maiden_sale_rankings = maiden_sale_rankings
-        self.claim_value = claim_value
+        self.maiden_trainer_rankings = maiden_trainer_rankings or []
+        self.maiden_works_rankings = maiden_works_rankings or []
+        self.maiden_sale_rankings = maiden_sale_rankings or []
+        self.claim_value = claim_value or 0
         self.race_class = race_class
         self.race_purse = race_purse
         self.race_date = race_date
-        self.max_wins = max_wins
+        self.max_wins = max_wins or 0
         self.longshot_prob = longshot_prob
         self.distance = distance
 
     def __repr__(self):
         return repr(self.horses)
+
 
 
 
@@ -318,7 +319,6 @@ def get_fake_wins(pps): # lost by less than length
     fake_wins = 0
     for pp in pps:
         if float(pp[52]) != 1 and float(pp[53]) <= 1.0:
-            print('FAKE')
             fake_wins += 1
     return fake_wins
 
@@ -979,7 +979,8 @@ def main():
                 races[race_id] = Race(track_code=row[0], race_number=row[2],class_value=race_classes[race_id],
                                       distance=race_distances[race_id], race_class=race_class_code[race_id],
                                       race_purse=race_purses[race_id], race_date=row[1],
-                                      surface=race_surfaces[race_id],
+                                      surface=race_surfaces[race_id],last_beyer_rankings=[],avg_beyer_rankings=[],
+                                      max_beyer_rankings=[],
                                       longshot_prob=get_race_longshot_odds(race_distances[race_id],race_class_code[race_id]))
             pps = get_pps(row[5])
             special_products = get_special_products(row[5])
@@ -1051,7 +1052,6 @@ def main():
                 loss_distance = get_loss_distances(pps)
                 is_ex_prat = ex_prat(pps)
                 fake_wins = get_fake_wins(pps)
-                print(fake_wins)
                 closing_speed = get_closing_speed(pps)
                 best_result_at_distance = get_best_result_at_distance(pps, races[race_id].distance)
                 best_result_at_comp = get_best_result_at_comp(pps, races[race_id].race_class, race_claim_prices[race_id])
