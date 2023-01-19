@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import argparse
 import sqlite3
 
+
 allowance = "AVG/LAST/MAX"
 claim = "AVG/LAST/MAX"
 stk = "AVG/LAST/MAX"
@@ -281,6 +282,7 @@ class Horse:
         self.avg_odds = avg_odds
         self.first_turf = first_turf
         self.trainer_name = trainer_name
+        self.is_legit_fav = False
 
     def __repr__(self):
         return repr(self.name + ' : ' + str(self.early_rate) + ':' + str(self.max_beyer) + ':' + str(self.avg_beyer))
@@ -1368,6 +1370,10 @@ def main():
                 if value_town >= 3:
                     horse.bonuses.append("Value Town: %s" % value_town)
 
+            if max_delta >= 8 or avg_delta >= 10 or max_delta >= 8:  # should be considered legit fav with 33% chance winning
+                if (float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1]))) <= 3:
+                    if races[race].race_class not in ["MSW", "MOC", "MCL"]:
+                        horse.bonuses.append("Legit Fav")
 
 
             if Ranking(races[race].max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer) in [1,2] and horse.down_class == -1:
@@ -1441,7 +1447,7 @@ def main():
                 if horse.name in winners_dict:
                     horse_row.append("True")
                     horse_row.append((float(winners_dict[horse.name]['price'])-2) /2)
-                    horse_row.append(True if float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) <  (float(winners_dict[horse.name]['price'])-2) /2 else False)
+                    horse_row.append(True if float(flaot(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) <  (float(winners_dict[horse.name]['price'])-2) /2 else False)
                     horse_row.append(((float(winners_dict[horse.name]['price'])-2) / 2)  - float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) )
 
                 else:
