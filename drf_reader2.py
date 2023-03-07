@@ -22,10 +22,10 @@ stk = "AVG/LAST/MAX"
 msw = "LAST/MAX/AVG"
 mcl = "MAX/LAST/AVG"
 
-beyer_priorities = {'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,
+beyer_priorities = {'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,
                     'AN2L':allowance,'AN3L':allowance, 'OClN': claim, 'FUT':'', 'MDN': mcl,'STR': stk,'SHP':stk, 'TRL': claim,
                     'INS': claim, 'AN1X': allowance, 'SOC':allowance, 'DBY':allowance, 'MOC':msw, 'AN2X':allowance, 'SST':stk,
-                    'HCP':stk, 'FTR': allowance, 'AN1Y':allowance}
+                    'HCP':stk, 'FTR': allowance, 'AN1Y':allowance,'AN4L':allowance}
 
 races = {}
 race_descriptions = {}
@@ -54,6 +54,7 @@ class_rankings = {
 "AN1Y":	4,
 "AN2X":	4,
 "AN1X":	4,
+"AN4L":	4,
 "AN2L":	3,
 "AN3L":	3,
 "AOC":	3,
@@ -75,6 +76,7 @@ class_rankings = {
 "MDN":	2,
 "FNL":	2,
 "MSW":	2,
+"MST":  2,
 "MOC":	2,
 "WMC":	1,
 "MCL":	1,
@@ -1070,7 +1072,12 @@ def main():
                     won_last = False
                 #last_track = '%s %s/%s/%s %s %s' % (pps[0][7], num2words(int(pps[0][52]), to='ordinal_num'), pps[0][57], pps[0][53], pps[0][12], pps[0][14])
                 #last_track += '\n %s' % pps[0][60]
-                last_track = pps[0][7] + "-" + pps[0][14] + ' (%s)' % pps[0][12]
+                last_track = pps[0][7] + "-" + pps[0][14] + ' (%s %s)' % (pps[0][12], pps[0][9])  # last running line
+
+                second_through_fifth_items = pps[1:5]
+                for item in second_through_fifth_items:
+                    last_track += '/' + item[7] + '(%s)' % item[52]
+
                 #last_track = pps[0][7]
                 last_date = datetime.datetime.strptime(pps[0][6], '%m/%d/%Y')
                 race_date = datetime.datetime.strptime(row[1], '%m/%d/%Y')
@@ -1242,6 +1249,9 @@ def main():
 
             if Ranking(races[race].jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey) <= 3:
                 horse.stars += 1
+
+            if horse.layoff > 100 and horse.works > -.37 and races[race].distance <= 6.5:
+                horse.bonuses.append("Live Layoff?")
 
             """
             if horse.maiden_lock:
