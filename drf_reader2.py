@@ -22,7 +22,7 @@ stk = "AVG/LAST/MAX"
 msw = "LAST/MAX/AVG"
 mcl = "MAX/LAST/AVG"
 
-beyer_priorities = {'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,
+beyer_priorities = {'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,"STA":stk,
                     'AN2L':allowance,'AN3L':allowance, 'OClN': claim, 'FUT':'', 'MDN': mcl,'STR': stk,'SHP':stk, 'TRL': claim,
                     'INS': claim, 'AN1X': allowance, 'SOC':allowance, 'DBY':allowance, 'MOC':msw, 'AN2X':allowance, 'SST':stk,
                     'HCP':stk, 'FTR': allowance, 'AN1Y':allowance,'AN4L':allowance}
@@ -60,6 +60,7 @@ class_rankings = {
 "AOC":	3,
 "Aoc":	3,
 "STR":	3,
+"STA":	3,
 "FTR":	3,
 "FUT":	3,
 "CHM": 3,
@@ -224,7 +225,7 @@ class Horse:
                  wins=0, place=0, show=0, improvement_rate=0.0, form_bonus=False, down_class=0, sale=0, trainer_pct=0.0, fluke=False, won_last=False, down_track=False, super_gain=False, zags=0,
                  loss_distance=0.0, closing_speed=False, last_track='', works=0.0, had_bullet=False, last_beyer=0.0, cur_year_earnings=0.0, stars=0, best_result_at_distance=-1,
                  jockey_name='', previous_jockey_name='', maiden_lock=False, tom_dist=False, tom_turf=False, tom_mud=False, last_finish='', last_finish_distance='', layoff=0, max_position='', best_result_at_comp='',
-                 dist_change=0, pen_rate=0.0, last_odds=0.0, last_odds_pos=0, avg_odds=0.0, first_turf=False, trainer_name='', is_ex_prat=False, fake_wins=0):
+                 dist_change=0, pen_rate=0.0, last_odds=0.0, last_odds_pos=0, avg_odds=0.0, first_turf=False, trainer_name='', is_ex_prat=False, fake_wins=0, jockey_trainer_pct=0.0):
         self.name = name
         self.early_rate = early_rate
         self.max_beyer = max_beyer
@@ -249,6 +250,7 @@ class Horse:
         self.down_track = down_track
         self.bonuses = []
         self.trainer_pct = trainer_pct
+        self.jockey_trainer_pct = jockey_trainer_pct
         self.sale = sale
         self.fluke = fluke
         self.won_last = won_last
@@ -532,46 +534,75 @@ def longshot_power(horse, race, avg_delta, max_delta, last_delta):
     else:
         cur.execute(
             "SELECT avg(\"Avg. B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        avg_field_ranking = float(cur.fetchone()[0])
+        result = cur.fetchone()[0]
+        if result is None:
+            avg_field_ranking = 0
+        else:
+            avg_field_ranking = float(result)
         if Ranking(race.avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer) <= avg_field_ranking:
             power += 1
         cur.execute(
             "SELECT avg(\"Avg. B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        avg_field_delta = float(cur.fetchone()[0])
+        result = cur.fetchone()[0]
+        if result is None:
+            avg_field_delta = 0
+        else:
+            avg_field_delta = float(result)
         if avg_delta >= avg_field_delta:
             power += 1
 
         cur.execute(
             "SELECT avg(\"Last B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        last_field_ranking = float(cur.fetchone()[0])
+        result = cur.fetchone()[0]
+        if result is None:
+            last_field_ranking = 0
+        else:
+            last_field_ranking = float(result)
         if Ranking(race.last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer) <= last_field_ranking:
             power += 1
         cur.execute(
             "SELECT avg(\"Last B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        last_field_delta = float(cur.fetchone()[0])
+        result = cur.fetchone()[0]
+        if result is None:
+            last_field_delta = 0
+        else:
+            last_field_delta = float(result)
         if avg_delta >= last_field_delta:
             power += 1
 
         cur.execute(
             "SELECT avg(\"Max B. Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        max_field_ranking = float(cur.fetchone()[0])
+        try:
+            max_field_ranking = float(cur.fetchone()[0])
+        except:
+            max_field_ranking = 0
         if Ranking(race.max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer) <= max_field_ranking:
             power += 1
         cur.execute(
             "SELECT avg(\"Max B. Delta\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        max_field_delta = float(cur.fetchone()[0])
+        result = cur.fetchone()[0]
+        if result is None:
+            max_field_delta = 0
+        else:
+            max_field_delta = float(result)
         if max_delta >= max_field_delta:
             power += 1
 
         cur.execute(
             "SELECT avg(\"Jockey Ranking\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        jockey_field_ranking = float(cur.fetchone()[0])
+        try:
+            jockey_field_ranking = float(cur.fetchone()[0])
+        except:
+            jockey_field_ranking = 0
         if Ranking(race.jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey) <= jockey_field_ranking:
             power += .25
 
         cur.execute(
             "SELECT avg(\"Jockey\") FROM races_v2 where class = \"%s\" and \"Won Race\"=\"True\" and price > 22.0" % race.race_class)
-        jockey_field = float(cur.fetchone()[0])
+        try:
+            jockey_field = float(cur.fetchone()[0])
+        except:
+            jockey_field = 0
         if horse.jockey >= jockey_field:
             power += .25
 
@@ -1153,6 +1184,7 @@ def main():
                                                down_track=down_track,
                                                sale=float(row[21]),
                                                trainer_pct=float(row[98]),
+                                               jockey_trainer_pct = float(row[116]),
                                                fluke=fluke,
                                                won_last=won_last,
                                                first_turf=first_turf,
@@ -1393,9 +1425,10 @@ def main():
             horse.my_odds = calculate_probability(horse, races[race])
 
             if true_ml > 8:
-                horse.longshot_power = longshot_power(horse, races[race], avg_delta, max_delta, last_delta)
+                """horse.longshot_power = longshot_power(horse, races[race], avg_delta, max_delta, last_delta)
                 if horse.longshot_power >= 4:
                     horse.bonuses.append("Power: %s" % horse.longshot_power)
+                """
 
             header_row = ['Date','Track','Race','Class','Distance','Surface','Price','Horse','Lifetime Starts',
                           'Wins','Place','Show','Avg. B. Ranking','Avg. B. Delta','Last B. Ranking','Last B. Delta',
@@ -1485,7 +1518,7 @@ def main():
                               '%s %s %s' % (horse.last_beyer, num2words(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer), to='ordinal_num'), last_delta),
                               '%s %s %s %s' % (horse.max_beyer,horse.max_beyer_days_ago, num2words(Ranking(races[race].max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer), to='ordinal_num'), max_delta),
                               '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:7] if horse.jockey_name.startswith("Her") or horse.jockey_name.startswith("Lan") or horse.jockey_name.startswith("Ort") or horse.jockey_name.startswith("Saez") else horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
-                              '%.2f %s' % (horse.trainer_pct,horse.trainer_name[:4]),
+                              '%.2f %s %.2f' % (horse.trainer_pct,horse.trainer_name[:4], horse.jockey_trainer_pct),
                               '%.2f %s' % (horse.works, '*' if horse.had_bullet else ''),
                               '%.2f %s' % (horse.early_rate if horse.lifetime_starts >= 2 else 0.0, (str("%.2f" % early_delta) if early_delta > 0 else '') if horse.lifetime_starts >= 2 else ''),
                               '%.2f' % (horse.improvement_rate if horse.lifetime_starts >= 2 else 0.0),
