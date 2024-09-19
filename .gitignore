@@ -1,3 +1,5 @@
 venv/
 *.db
 *.csv
+*.pdf
+.idea/

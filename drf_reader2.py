@@ -14,21 +14,15 @@ import requests
 from bs4 import BeautifulSoup
 import argparse
 import sqlite3
+import statistics
+import re
+from race_grade import RaceGrades
 
-
-allowance = "AVG/LAST/MAX"
-claim = "AVG/LAST/MAX"
-stk = "AVG/LAST/MAX"
-msw = "LAST/MAX/AVG"
-mcl = "MAX/LAST/AVG"
-
-beyer_priorities = {'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,"STA":stk,
-                    'AN2L':allowance,'AN3L':allowance, 'OClN': claim, 'FUT':'', 'MDN': mcl,'STR': stk,'SHP':stk, 'TRL': claim,
-                    'INS': claim, 'AN1X': allowance, 'SOC':allowance, 'DBY':allowance, 'MOC':msw, 'AN2X':allowance, 'SST':stk,
-                    'HCP':stk, 'FTR': allowance, 'AN1Y':allowance,'AN4L':allowance}
+from constants import *
 
 races = {}
 race_descriptions = {}
+race_grades = {}
 race_surfaces = {}
 race_distances = {}
 race_claim_prices = {}
@@ -41,153 +35,17 @@ race_date = ''
 race_track = ''
 winners_dict = {}
 hrn_runners = []
-class_rankings = {
-"GStk": 5,
-"STK": 5,
-"SST": 5,
-"Stk": 5,
-"HDS": 5,
-"ALW":	4,
-"Alw":	4,
-"HCP":	4,
-"Hcp":	4,
-"AN1Y":	4,
-"AN2X":	4,
-"AN1X":	4,
-"AN4L":	4,
-"AN2L":	3,
-"AN3L":	3,
-"AOC":	3,
-"Aoc":	3,
-"STR":	3,
-"STA":	3,
-"FTR":	3,
-"FUT":	3,
-"CHM": 3,
-"SHP":	3,
-"OClN": 3,
-"OCL":	3,
-"OCS":	3,
-"SOC":	3,
-"WCL":	2,
-"ClmN":	2,
-"CLM":	2,
-"CST":  2,
-"Clm":	2,
-"MDN":	2,
-"FNL":	2,
-"MSW":	2,
-"MST":  2,
-"MOC":	2,
-"WMC":	1,
-"MCL":	1,
-"Maid":	1,
-"TRL": 1,
-"DBY": 1,
-"DTR": 1,
-"INS": 1,
-"FCN": 1
 
-
-}
-
-non_scrub_tracks = {
-    'Dmr': 61,
-    'DMR': 61,
-    'SA': 61,
-    'Kee': 61,
-    'KEE': 54,
-    'PrM': 34,
-    'GG': 36,
-    'LA': 35,
-    'Alb': 35,
-    'Leo': 61,
-    'Bel': 61,
-    'CD': 61,
-    'GP': 61,
-    'GPW': 61,
-    'Sar': 61,
-}
-
-track_abbreviations = {
-    'Dmr': 61,
-    'DMR': 61,
-    'SA': 61,
-    'Zia': 61,
-    'Kee': 61,
-    'KEE': 54,
-    'PrM': 34,
-    'GG': 61,
-    'LA': 35,
-    'Alb': 35,
-    'Leo': 61,
-    'Bel': 61,
-    'CD': 61,
-    'GP': 61,
-    'GPW': 61,
-    'Sar': 61,
-    'Del': 37,
-    'Prx': 55,
-    'Cnl': 36,
-    'Mil': 36,
-    'Ind': 36,
-    'LRC': 36,
-    'Lrl': 54,
-    'ElP': 54,
-    'KD': 54,
-    'AP': 54,
-    'WO': 61,
-    'Pim': 61,
-    'Cur': 54,
-    'CT': 54,
-    'NEW': 54,
-    'DON': 54,
-    'LCH': 54,
-    'GOO': 54,
-    'CHY': 54,
-    'DEA': 54,
-    'Mth': 54,
-    'NBY': 54,
-    'Nag': 54,
-    'Tok': 54,
-    'ASC': 54,
-    'Bad': 54,
-    'EmD': 54,
-    'Hst': 54,
-    'TuP': 54,
-    'Cby': 54,
-    'BtP': 54,
-    'RP': 54,
-    'LaD': 54,
-    'LS': 54,
-    'Mey': 54,
-    'PID': 54,
-    'SAL': 54,
-    'OP': 54,
-    'FL': 30,
-    'Aqu': 61,
-    'HAR': 54,
-    'Pen': 54,
-    'Tam': 54,
-    'Rom': 54,
-    'Tip': 54,
-    'FP': 54,
-    'FG': 54,
-    'FE': 54,
-    'WRD': 54,
-    'Tdn': 54,
-    'Mnr': 54,
-
-}
 
 class Race:
-    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob, description=None, early_rate_rankings=None, max_beyer_rankings=None, avg_beyer_rankings=None, last_beyer_rankings=None, jockey_rankings=None, chances_rankings=None, improvement_rankings=None, loss_distance_rankings=None, money_rate_rankings=None, cur_year_earnings_rankings=None, trainer_rankings=None, sale_rankings=None, works_rankings=None, maiden_trainer_rankings=None, maiden_works_rankings=None, maiden_sale_rankings=None, claim_value=None, max_wins=None):
+    def __init__(self, track_code, race_number, class_value, distance, race_class, race_purse, race_date, surface, longshot_prob, description=None, early_rate_rankings=None, max_beyer_rankings=None, avg_beyer_rankings=None, last_beyer_rankings=None, jockey_rankings=None, chances_rankings=None, improvement_rankings=None, loss_distance_rankings=None, money_rate_rankings=None, cur_year_earnings_rankings=None, trainer_rankings=None, sale_rankings=None, works_rankings=None, maiden_trainer_rankings=None, maiden_works_rankings=None, maiden_sale_rankings=None, claim_price=0, max_wins=None,race_grades=None):
         self.description = description or ''
         self.horses = []
         self.race_number = race_number
         self.early_rate_rankings = early_rate_rankings or []
         self.max_beyer_rankings = max_beyer_rankings or []
         self.avg_beyer_rankings = avg_beyer_rankings or []
+        self.avg_beyers = []
         self.last_beyer_rankings = last_beyer_rankings or []
         self.jockey_rankings = jockey_rankings or []
         self.chances_rankings = chances_rankings or []
@@ -204,17 +62,17 @@ class Race:
         self.maiden_trainer_rankings = maiden_trainer_rankings or []
         self.maiden_works_rankings = maiden_works_rankings or []
         self.maiden_sale_rankings = maiden_sale_rankings or []
-        self.claim_value = claim_value or 0
+        self.claim_price = claim_price
         self.race_class = race_class
         self.race_purse = race_purse
         self.race_date = race_date
         self.max_wins = max_wins or 0
         self.longshot_prob = longshot_prob
         self.distance = distance
+        self.race_grades = race_grades  # overlay probability by distance, class beyers
 
     def __repr__(self):
         return repr(self.horses)
-
 
 
 
@@ -225,7 +83,7 @@ class Horse:
                  wins=0, place=0, show=0, improvement_rate=0.0, form_bonus=False, down_class=0, sale=0, trainer_pct=0.0, fluke=False, won_last=False, down_track=False, super_gain=False, zags=0,
                  loss_distance=0.0, closing_speed=False, last_track='', works=0.0, had_bullet=False, last_beyer=0.0, cur_year_earnings=0.0, stars=0, best_result_at_distance=-1,
                  jockey_name='', previous_jockey_name='', maiden_lock=False, tom_dist=False, tom_turf=False, tom_mud=False, last_finish='', last_finish_distance='', layoff=0, max_position='', best_result_at_comp='',
-                 dist_change=0, pen_rate=0.0, last_odds=0.0, last_odds_pos=0, avg_odds=0.0, first_turf=False, trainer_name='', is_ex_prat=False, fake_wins=0, jockey_trainer_pct=0.0):
+                 dist_change=0, pen_rate=0.0, last_odds=0.0, last_odds_pos=0, avg_odds=0.0, first_turf=False, trainer_name='', is_ex_prat=False, fake_wins=0, jockey_trainer_pct=0.0,claim_drop=False):
         self.name = name
         self.early_rate = early_rate
         self.max_beyer = max_beyer
@@ -287,6 +145,7 @@ class Horse:
         self.first_turf = first_turf
         self.trainer_name = trainer_name
         self.is_legit_fav = False
+        self.claim_drop = claim_drop
 
     def __repr__(self):
         return repr(self.name + ' : ' + str(self.early_rate) + ':' + str(self.max_beyer) + ':' + str(self.avg_beyer))
@@ -475,9 +334,11 @@ def get_avg_beyer(pps):
                 speed_figure -= 14
             average_beyer += speed_figure
             total += 1
-    if total > 1: # have 4 to qualify tossing the lowest
+    if total > 3: # have 4 to qualify tossing the lowest
         average_beyer -= min
         total -= 1
+        return average_beyer / total
+    elif total > 2:
         return average_beyer / total
     else:
         return 0
@@ -980,6 +841,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('race_source')
     parser.add_argument('--results', action='store_true')
+    parser.add_argument('--mud', action='store_true')
+
 
     options = parser.parse_args()
 
@@ -994,6 +857,7 @@ def main():
             surface = row[17]
             x = beyer_priorities[row[11]]
             race_descriptions[int(row[2])] = 'Race %s: %s \n%s\n%s %s %s %s' % (row[2], row[4], row[26], row[15], row[11], surface, '\n'+x)
+            race_grades[int(row[2])] = RaceGrades(race_class=row[11], distance=row[15])
             race_surfaces[int(row[2])] = surface
             race_classes[int(row[2])] = class_rankings[row[11]]
             race_distances[int(row[2])] = float(row[15])
@@ -1007,6 +871,25 @@ def main():
 
     if options.results:
         load_winners()
+
+        header_row = ['date', 'track', 'race', 'class', 'distance', 'surface', 'claim_price', 'claim_drop',
+                      'price', 'horse',
+                      'lifetime_starts',
+                      'wins', 'place', 'show', 'avg_b_ranking', 'avg_b_delta', 'last_b_ranking',
+                      'last_b_delta',
+                      'max_b_ranking', 'max_b_delta', 'jockey_ranking', 'jockey', 'early_ranking', 'early',
+                      'trainer_ranking', 'trainer', 'jockey_trainer_pct', 'work_ranking', 'works',
+                      'year_earnings_rankings',
+                      'year_earnings',
+                      'form', 'super_gain', 'class_change', 'dist_change', 'won_last', 'last_finish',
+                      'last_finish_distance', 'had_bullet',
+                      'fluke', 'tom_dist', 'tom_turf', 'tom_mud', 'layoff', 'zags', 'ml_odds', 'won_race',
+                      'final_odds', 'overlay_bool', 'overlay']
+
+        """with open("horse_data_base_{:%Y_%m_%d}.csv".format(datetime.datetime.now()), 'a') as f:
+            spamwriter = csv.writer(f)
+            spamwriter.writerow(header_row)
+        """
     with open(options.race_source + '.ch', 'r') as f:
         for row in csv.reader(f):
             race_id = int(row[2])
@@ -1015,8 +898,9 @@ def main():
                                       distance=race_distances[race_id], race_class=race_class_code[race_id],
                                       race_purse=race_purses[race_id], race_date=row[1],
                                       surface=race_surfaces[race_id],last_beyer_rankings=[],avg_beyer_rankings=[],
-                                      max_beyer_rankings=[],
-                                      longshot_prob=get_race_longshot_odds(race_distances[race_id],race_class_code[race_id]))
+                                      max_beyer_rankings=[], claim_price=race_claim_prices[race_id],
+                                      longshot_prob=get_race_longshot_odds(race_distances[race_id],race_class_code[race_id]),
+                                      race_grades=RaceGrades('STK', 8))
             pps = get_pps(row[5])
             special_products = get_special_products(row[5])
             tom_dist = special_products[15].replace("*", "")
@@ -1053,6 +937,22 @@ def main():
                     down_class = 1
                 else:
                     down_class = 0
+
+
+                if races[race_id].race_class in ['CLM','ClmN'] and pps[0][13] in ['CLM','ClmN']:
+                    if float(races[race_id].claim_price) < float(pps[0][15]):  # claim drop
+                        claim_drop = True
+                    else:
+                        claim_drop = False
+
+                elif races[race_id].race_class == 'MCL' and pps[0][13] == 'MCL':
+                    if float(races[race_id].claim_price) < float(pps[0][15]):  # claim drop
+                        claim_drop = True
+                    else:
+                        claim_drop = False
+                else:
+                    claim_drop = False
+
                 #if track_abbreviations[races[race_id].track_code] > track_abbreviations[pps[0][7]]:
                 #    down_track = True
                 #else:
@@ -1067,6 +967,8 @@ def main():
                 early_rate = get_early_rate(pps)
                 max_beyer, max_beyer_days_ago = get_max_beyer(pps[:6])
                 avg_beyer = get_avg_beyer(pps[:6])
+                if avg_beyer > 0:
+                    races[race_id].avg_beyers.append(avg_beyer)
                 pen_rate = get_pen_rate(pps[:6])
                 last_beyer = int(pps[0][57])
                 last_odds = float(pps[0][62])
@@ -1159,11 +1061,19 @@ def main():
                 first_turf = False
                 is_ex_prat = False
                 fake_wins = 0
+                claim_drop = False
             if float(row[79]) > 0:
                 jockey_second = float(row[82]) / float(row[79])
             else:
                 jockey_second = 0
-            races[race_id].horses.append(Horse(name=row[5] if row[6] == 'D' else '%s (%s)' % (row[5], row[11]),
+            mto_ae = row[3]
+            if mto_ae == 'A':
+                mto_ae = ' (AE)'
+            elif mto_ae == 'M':
+                mto_ae = ' (MTO)'
+            else:
+                mto_ae = ''
+            races[race_id].horses.append(Horse(name=row[5] + mto_ae if row[6] == 'D' else '%s (%s)' % (row[5], row[11]),
                                                early_rate=early_rate,
                                                max_beyer=max_beyer,
                                                max_beyer_days_ago = max_beyer_days_ago,
@@ -1173,6 +1083,7 @@ def main():
                                                chances_rate=chances_rate,
                                                lifetime_starts=int(row[42]),
                                                post=row[30],
+                                               claim_drop = claim_drop,
                                                morning_line=morning_lines[row[5]],
                                                bet_number=bet_numbers[row[5]],
                                                wins=int(row[43]),
@@ -1285,7 +1196,13 @@ def main():
             if horse.layoff > 100 and horse.works > -.37 and races[race].distance <= 6.5:
                 horse.bonuses.append("Live Layoff?")
 
+
+            if options.mud:
+                horse.bonuses.append("M-%s" % horse.tom_mud)
+
+
             """
+
             if horse.maiden_lock:
                 horse.bonuses.append("MAIDEN LOCK!")
             """
@@ -1430,14 +1347,16 @@ def main():
                     horse.bonuses.append("Power: %s" % horse.longshot_power)
                 """
 
-            header_row = ['Date','Track','Race','Class','Distance','Surface','Price','Horse','Lifetime Starts',
-                          'Wins','Place','Show','Avg. B. Ranking','Avg. B. Delta','Last B. Ranking','Last B. Delta',
-                          'Max B. Ranking', 'Max B. Delta','Jockey Ranking', 'Jockey', 'Early Ranking', 'Early',
-                          'Trainer Ranking', 'Trainer', 'Work Ranking', 'Works', 'Year Earnings Rankings', 'Year Earnings',
-                          'Form', 'Super Gain', 'Class Change','Dist Change','Won Last', 'Last Finish','Last Finish Distance', 'Had Bullet',
-                          'Fluke','Tom Dist','Tom Turf', 'Tom Mud','Layoff','ML Odds', 'Won Race','Final Odds','Overlay Bool','Overlay']
+            if options.results and ((horse.name in winners_dict or horse.name in hrn_runners)
+                                    or (re.sub(r'\(([^)]+)\)', lambda x: '(' + x.group(1).upper() + ')', horse.name) in winners_dict or re.sub(r'\(([^)]+)\)', lambda x: x.group(0).capitalize(), horse.name) in hrn_runners)
+                                    ):  # either won the race or listed as a runner i.e. non scratch
 
-            if options.results and (horse.name in winners_dict or horse.name in hrn_runners):
+                # define horse name key for capital
+                if horse.name in winners_dict:
+                    horse_winner_key = horse.name
+                else:
+                    horse_winner_key = re.sub(r'\(([^)]+)\)', lambda x: '(' + x.group(1).upper() + ')', horse.name)
+
                 horse_row = []
                 horse_row.append(race_date.strftime("%Y/%m/%d"))
                 horse_row.append(race_track)
@@ -1445,9 +1364,14 @@ def main():
                 horse_row.append(races[race].race_class)
                 horse_row.append(races[race].distance)
                 horse_row.append(races[race].surface)
+                horse_row.append(races[race].claim_price)
+                horse_row.append(horse.claim_drop)
 
-                if horse.name in winners_dict:
-                    horse_row.append(winners_dict[horse.name]['price'])
+
+
+                if horse.name in winners_dict or re.sub(r'\(([^)]+)\)', lambda x: '(' + x.group(1).upper() + ')', horse.name) in winners_dict:
+                    horse_row.append(winners_dict[horse_winner_key]['price'])
+
                 else:
                     horse_row.append('')
 
@@ -1458,6 +1382,9 @@ def main():
                 horse_row.append(horse.show) if horse.lifetime_starts > 0 else horse_row.append('')
                 ##
                 horse_row.append(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer))
+                #print(races[race].avg_beyers)
+                #if len(races[race].avg_beyers) > 1:
+                    #print(statistics.stdev(races[race].avg_beyers))
                 horse_row.append(avg_delta) if horse.lifetime_starts > 0 else horse_row.append('')
                 horse_row.append(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer))
                 horse_row.append(last_delta) if horse.lifetime_starts > 0 else horse_row.append('')
@@ -1469,6 +1396,7 @@ def main():
                 horse_row.append(horse.early_rate) if horse.lifetime_starts > 0 else horse_row.append('')
                 horse_row.append(Ranking(races[race].trainer_rankings, start=1, strategy=COMPETITION).rank(horse.trainer_pct))
                 horse_row.append(horse.trainer_pct)
+                horse_row.append(horse.jockey_trainer_pct)
                 horse_row.append(Ranking(races[race].works_rankings, start=1, strategy=COMPETITION).rank(horse.works))
                 horse_row.append('%.2f' % horse.works) if horse.works < 0 else horse_row.append('')
                 horse_row.append(Ranking(races[race].cur_year_earnings_rankings, start=1, strategy=COMPETITION).rank(horse.cur_year_earnings))
@@ -1486,12 +1414,13 @@ def main():
                 horse_row.append(horse.tom_turf)
                 horse_row.append(horse.tom_mud)
                 horse_row.append(horse.layoff) if horse.layoff else horse_row.append('')
+                horse_row.append(horse.zags)
                 horse_row.append(float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])))
-                if horse.name in winners_dict:
+                if horse.name in winners_dict or re.sub(r'\(([^)]+)\)', lambda x: '(' + x.group(1).upper() + ')', horse.name) in winners_dict:
                     horse_row.append("True")
-                    horse_row.append((float(winners_dict[horse.name]['price'])-2) /2)
-                    horse_row.append(True if float(flaot(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) <  (float(winners_dict[horse.name]['price'])-2) /2 else False)
-                    horse_row.append(((float(winners_dict[horse.name]['price'])-2) / 2)  - float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) )
+                    horse_row.append((float(winners_dict[horse_winner_key]['price'])-2) /2)
+                    horse_row.append(True if float(float(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) <  (float(winners_dict[horse_winner_key]['price'])-2) /2 else False)
+                    horse_row.append(((float(winners_dict[horse_winner_key]['price'])-2) / 2)  - float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1])) )
 
                 else:
                     horse_row.append('False')
@@ -1499,11 +1428,9 @@ def main():
                     horse_row.append('')
                     horse_row.append('')
 
-
-                with open('new_eggs.csv', 'a') as f:
+                with open("horse_data_base_{:%Y_%m_%d}.csv".format(datetime.datetime.now()), 'a') as f:
                     spamwriter = csv.writer(f)
                     spamwriter.writerow(horse_row)
-                    #spamwriter.writerow(header_row)
                     #exit(1)
                     #return
 
@@ -1517,7 +1444,7 @@ def main():
                               '%s %s %s' % (horse.avg_beyer, num2words(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer), to='ordinal_num'), avg_delta),
                               '%s %s %s' % (horse.last_beyer, num2words(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer), to='ordinal_num'), last_delta),
                               '%s %s %s %s' % (horse.max_beyer,horse.max_beyer_days_ago, num2words(Ranking(races[race].max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer), to='ordinal_num'), max_delta),
-                              '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:7] if horse.jockey_name.startswith("Her") or horse.jockey_name.startswith("Lan") or horse.jockey_name.startswith("Ort") or horse.jockey_name.startswith("Saez") else horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
+                              '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:7] if horse.jockey_name.startswith("Her") or horse.jockey_name.startswith("Lan") or horse.jockey_name.startswith("Ort") or horse.jockey_name.startswith("Saez") or horse.jockey_name.startswith("Dav")  or horse.jockey_name.startswith("Fre") else horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
                               '%.2f %s %.2f' % (horse.trainer_pct,horse.trainer_name[:4], horse.jockey_trainer_pct),
                               '%.2f %s' % (horse.works, '*' if horse.had_bullet else ''),
                               '%.2f %s' % (horse.early_rate if horse.lifetime_starts >= 2 else 0.0, (str("%.2f" % early_delta) if early_delta > 0 else '') if horse.lifetime_starts >= 2 else ''),
@@ -1532,7 +1459,7 @@ def main():
                               '%s' % horse.last_finish_distance,
                               '%.1f\n%s' % (horse.last_odds, '(' + num2words(horse.last_odds_pos, to='ordinal_num') + ')' if horse.last_odds_pos > 0 else ''), # num2words(pp[52],to='ordinal_num'
                               '%.1f' % horse.avg_odds,
-                              '%s' % horse.layoff,
+                              '%s' % horse.layoff,  #str(races[race].race_grades.overlay_rank)
 
                 ' '.join(map(str, horse.bonuses)),
                               ])
@@ -1544,6 +1471,7 @@ def main():
     if not options.results:
         for index, table_tuple in enumerate(tables):
             print(race_descriptions[index + 1])
+            print(repr(race_grades[index + 1]))
             if races[index+1].longshot_prob != 0:
                 print("Longshot Odds %.1f:1" % races[index+1].longshot_prob)
             print tabulate(table_tuple[0],
