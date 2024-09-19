@@ -1,0 +1,29 @@
+SELECT
+    AVG(jockey) AS avg_avg_b_ranking,
+    COUNT(r.class) AS class_count,
+    r.class,
+    (COUNT(r.won_race) * 100.0) / t.total_races AS percentage_won_race
+FROM
+    races r
+JOIN
+    (
+        SELECT
+            class,
+            COUNT(*) AS total_races
+        FROM
+            races
+        WHERE
+            ml_odds < 2.5 and jockey > .02
+        GROUP BY
+            class
+    ) t ON r.class = t.class
+WHERE
+    r.won_race = 'True'
+    AND r.jockey IS NOT NULL
+    AND r.ml_odds < 2.5 and jockey > .02
+GROUP BY
+    r.class
+HAVING
+    COUNT(r.class) >= 50
+ORDER BY
+    percentage_won_race DESC;  -- Order by percentage descending
