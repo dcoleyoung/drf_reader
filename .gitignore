@@ -1,5 +1,8 @@
 venv/
-*.db
 *.csv
 *.pdf
 .idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

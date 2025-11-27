@@ -4,10 +4,10 @@ stk = "AVG/LAST/MAX"
 msw = "LAST/MAX/AVG"
 mcl = "MAX/LAST/AVG"
 
-beyer_priorities = {'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,"STA":stk,
+beyer_priorities = {'RHP':allowance, 'MST': mcl, 'MSW': msw, 'ClmN':claim,"MCL":mcl, "CLM":claim, "GStk":stk, "AOC":allowance, "ALW":allowance,"STK":stk,"STA":stk,
                     'AN2L':allowance,'AN3L':allowance, 'OClN': claim, 'FUT':'', 'MDN': mcl,'STR': stk,'SHP':stk, 'TRL': claim,
                     'INS': claim, 'AN1X': allowance, 'SOC':allowance, 'DBY':allowance, 'MOC':msw, 'AN2X':allowance, 'SST':stk,
-                    'HCP':stk, 'FTR': allowance, 'AN2Y': allowance, 'AN1Y':allowance,'AN4L':allowance}
+                    'AN3X': allowance, 'HCP':stk, 'FTR': allowance, 'AN2Y': allowance, 'AN1Y':allowance,'AN4L':allowance, 'OCL': allowance}
 
 
 class_rankings = {
@@ -15,6 +15,7 @@ class_rankings = {
 "STK": 5,
 "SST": 5,
 "Stk": 5,
+"RHP": 5,
 "HDS": 5,
 "ALW":	4,
 "Alw":	4,
@@ -24,6 +25,7 @@ class_rankings = {
 "AN2Y":	4,
 "AN2X":	4,
 "AN1X":	4,
+"AN3X":	4,
 "AN4L":	4,
 "AN2L":	3,
 "AN3L":	3,

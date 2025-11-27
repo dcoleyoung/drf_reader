@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import sys
 import csv
 from ranking import *
@@ -537,11 +535,11 @@ def assign_grade(horse, race):
         if (max_beyer_rank <= 3 and
             last_beyer_rank <= 3 and
             year_earnings_rank <= 3 and
-            horse.last_finish <= 4 and  # More lenient based on 3.2 avg
+            isinstance(horse.last_finish, (int, float)) and horse.last_finish <= 4 and  # Ensure compatibility for Python 3
             horse.trainer_pct >= 0.18):  # Lowered from 0.20 based on data
             return 'GUARANTEED-WINNER'
         # Data showed vulnerable favs: layoff ~49 days, negative class changes
-        elif (horse.last_finish > 3 or
+        elif ((isinstance(horse.last_finish, (int, float)) and horse.last_finish > 3) or
               horse.layoff >= 45 or  # Lowered from 60 based on data
               max_beyer_rank > 4):  # Kept as good discriminator
             return 'VULNERABLE-FAV'
@@ -1064,7 +1062,9 @@ def main():
                 last_finish = pps[0][52]
                 last_finish_distance = pps[0][53]
 
-                if int(pps[0][52]) == 2 or (pps[0][52] != 1 and pps[0][53] <= 2.5):
+                finish_pos = int(pps[0][52])
+                finish_dist = float(pps[0][53])
+                if finish_pos == 2 or (finish_pos != 1 and finish_dist <= 2.5):
                     stars += 1
 
 
@@ -1253,7 +1253,7 @@ def main():
                 horse.bonuses.append("MAIDEN LOCK!")
             """
             if horse.down_class < 0:
-                horse.bonuses.append("\/")
+                horse.bonuses.append("/")
                 horse.stars += 1
                 if Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer) == 1 and Ranking(races[race].jockey_rankings, start=1, strategy=COMPETITION).rank(horse.jockey) in [1,2]:
                     horse.bonuses.append("LOCK!")
@@ -1489,7 +1489,7 @@ def main():
                     '%s (%s) \n%s\n%s'  % (horse.name, horse.bet_number, horse.morning_line, horse.grade),
                               '%s:%s%s-%s-%s' % (horse.lifetime_starts, horse.wins ,'('+str(horse.fake_wins)+')' if horse.fake_wins > 0 else '', horse.place, horse.show),
                               '%.1f:1%s\nof:%.f' % (horse.my_odds[0],'*' if horse.my_odds[0] < (float(int(horse.morning_line.split("-")[0])/int(horse.morning_line.split("-")[1]))) else '', horse.my_odds[1]) if horse.my_odds[0] != 0 else '',
-                              '%s %s %s' % (horse.avg_beyer, num2words(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer), to='ordinal_num'), avg_delta),
+                              '%d %s %d' % (int(round(horse.avg_beyer)), num2words(Ranking(races[race].avg_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.avg_beyer), to='ordinal_num'), int(round(avg_delta))),
                               '%s %s %s' % (horse.last_beyer, num2words(Ranking(races[race].last_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.last_beyer), to='ordinal_num'), last_delta),
                               '%s %s %s %s' % (horse.max_beyer,horse.max_beyer_days_ago, num2words(Ranking(races[race].max_beyer_rankings, start=1, strategy=COMPETITION).rank(horse.max_beyer), to='ordinal_num'), max_delta),
                               '%s %s %s%s' % (horse.jockey,Ranking(races[race].jockey_rankings, start=1, strategy=DENSE).rank(horse.jockey), horse.jockey_name[:7] if horse.jockey_name.startswith("Her") or horse.jockey_name.startswith("Lan") or horse.jockey_name.startswith("Ort") or horse.jockey_name.startswith("Saez") or horse.jockey_name.startswith("Dav")  or horse.jockey_name.startswith("Fre") else horse.jockey_name[:3], '/' + horse.previous_jockey_name[:2] if len(horse.previous_jockey_name) > 0 else ''),
@@ -1519,14 +1519,17 @@ def main():
     if not options.results:
         for index, table_tuple in enumerate(tables):
             print(race_descriptions[index + 1])
-            print(repr(race_grades[index + 1]))
+            grade_repr = race_grades[index + 1].__repr__()
+            if isinstance(grade_repr, bytes):
+                grade_repr = grade_repr.decode("utf-8", errors="replace")
+            print(grade_repr)
             if races[index+1].longshot_prob != 0:
                 print("Longshot Odds %.1f:1" % races[index+1].longshot_prob)
-            print tabulate(table_tuple[0],
+            print(tabulate(table_tuple[0],
                            tablefmt="pretty",
                            headers=["Rating", "Name","Life","My Odds", "Avg\nBeyer","Last\nBeyer","Max\nBeyer", "Jockey","Tr.",
                                     "Works","Early","Late","Pen Call","$","Form","SG","Class","Last Track","LF","LFD",
-                                    "Last Odds","Avg Odds","Layoff","Bonuses","Comp"])
+                                    "Last Odds","Avg Odds","Layoff","Bonuses","Comp"]))
 
 
 if __name__ == "__main__":

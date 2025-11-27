@@ -1,0 +1,5 @@
+tabulate
+num2words
+requests
+beautifulsoup4
+ranking
