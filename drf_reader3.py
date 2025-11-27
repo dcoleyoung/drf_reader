@@ -689,7 +689,12 @@ def profile_horse(horse, race_class, race_distance, avg_delta, max_delta, last_d
     #print horse.name
     cur.execute("SELECT avg(\"Works\") FROM races where \"Class Change\" = %s and Distance=%s and Class=\"%s\"" % (horse.down_class, race_distance,race_class))
     works_db = cur.fetchone()[0]
-    if works_db <= float(horse.works) and float(horse.works) != 0 and float(horse.works) < 0 and works_db:
+    if (
+        works_db is not None and
+        float(horse.works) != 0 and
+        float(horse.works) < 0 and
+        works_db <= float(horse.works)
+    ):
         profile_hits += 1
         #print "works:", works_db, horse.works
 
